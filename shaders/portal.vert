@@ -1,6 +1,7 @@
 #version 330 core
 
 layout (location = 0) in vec3 in_position;
+layout (location = 1) in float in_portal_view_id;
 
 layout (location = 5) in vec3  obj_position;
 layout (location = 6) in vec4  obj_rotation;
@@ -12,7 +13,7 @@ uniform mat4 projectionMatrix;
 uniform mat4 viewMatrix;
 
 // Pass to frag
-flat out int textureIndex;
+flat out float textureIndex;
 
 // Function to get the model matrix from node position, rotation, and scale
 mat4 getModelMatrix(vec3 pos, vec4 rot, vec3 scl) {
@@ -42,5 +43,5 @@ void main() {
     mat4 modelMatrix = getModelMatrix(obj_position, obj_rotation, obj_scale);
     // Set the fragment position
     gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(in_position, 1.0);
-    textureIndex = 0;
+    textureIndex = in_portal_view_id;
 }

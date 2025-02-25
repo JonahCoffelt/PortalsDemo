@@ -8,18 +8,23 @@ class Demo:
         """
         
         # Create Basilisk objects
-        self.engine = bsk.Engine()
+        self.engine = bsk.Engine(title=None)
         self.scene = bsk.Scene(self.engine)
 
         # Load a sample level
+        self.load_assets()
         load_level(self.scene)
 
         # Handler for portals
-        self.portal_handler = PortalHandler(self.engine)
+        self.portal_handler = PortalHandler(self)
         # Add a portal
-        self.portal_handler.add(self.scene, open_position=(-3, 4, 5), end_position=(5, 6, -3))
+        self.portal_handler.add(self.scene, open_position=(-15, 2, 10), end_position=(15, 2, 10), scale=(2, 4, .1))
 
-        print(self.portal_handler.portals)
+        self.portal_handler.add(self.scene, open_position=(-15, 2, -10), end_position=(15, 2, -10), scale=(2, 4, .1))
+    
+
+    def load_assets(self):
+        self.invisible_shader = bsk.Shader(self.engine, 'shaders/invisible.vert', 'shaders/invisible.frag')
 
     def update(self):
         self.portal_handler.update(self.scene.camera)
