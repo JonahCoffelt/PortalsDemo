@@ -1,56 +1,80 @@
 import basilisk as bsk
-import numpy as np
 import glm
 
 class Portal:
-    def __init__(self, portal_handler: ..., scene: bsk.Scene, shader: bsk.Shader, position: tuple[int], scale: tuple[int]) -> None:
+    def __init__(self, portal_handler: ..., scene: bsk.Scene, position: tuple[int], scale: tuple[int]) -> None:
         """
         
         """
         
         self.portal_handler = portal_handler
-        self.scene = scene
         self.engine = scene.engine
 
+        # Get the scenes
+        self.game_scene = scene
+        self.portal_scene = self.portal_handler.portal_scene
+        
+        # Get the shaders
+        self.game_shader   = self.game_scene.shader
+        self.color_shader  = self.portal_handler.color_shader
+        self.portal_shader = self.portal_handler.portal_shader
+        self.depth_shader  = self.portal_handler.depth_shader
+
+        # Other portal that this portal is linked to
         self.link: Portal = None
 
-        self.fbo = bsk.Framebuffer(self.engine)
-        self.black = bsk.Material(color=0)
+        # FBOs for the pre and post pass
+        self.depth_fbo = bsk.Framebuffer(self.engine)
+        self.color_fbo = bsk.Framebuffer(self.engine)
+
+        # Load the mesh for the portal (cube with custom data)
         self.mesh = bsk.Mesh('assets/cube.obj', custom_format=True)
         self.mesh.data[:,3] = 0
         self.mesh.data = self.mesh.data[:,:4]
 
-        self.node = bsk.Node(mesh=self.mesh, position=position, scale=(scale[0], scale[1], scale[2]), shader=shader)
-        self.outline = bsk.Node(position=position, scale=(scale[0] + .1, scale[1] + .1, scale[2] - .01,), material=self.black)
-        self.scene.add(self.node, self.outline)
+        # Create the portal node and add it to the portal scene
+        self.black = bsk.Material(color=0)
+        self.node = bsk.Node(mesh=self.mesh, position=position, scale=scale, shader=self.portal_shader)
+        self.outline = bsk.Node(position=position, scale=(scale[0] + .1, scale[1] + .1, scale[2] - .01,), material=self.black, shader=self.game_shader)
+        self.portal_scene.add(self.node, self.outline)
 
-    def render_view(self, camera: bsk.FreeCamera, texture_index: int):
-        """
-        Renders the view of the portal for the link
-        """
 
+    def render_pass(self, camera: bsk.FreeCamera, render_target: bsk.Framebuffer, scene: bsk.Scene, shader: bsk.Shader):
         # Cannot render the view if there is no link
         if not self.link: return
-        self.link.mesh.data[:,3] = texture_index
 
         # Get the position of the camera relative to the link
         relative_position = camera.position - (self.link.node.position.x, self.link.node.position.y, self.link.node.position.z)
 
-        # Save the camera
-        temp = self.scene.camera
-        # Make a new camera 
-        view_cam = bsk.FixedCamera(position=((self.node.position.x, self.node.position.y, self.node.position.z) + relative_position), rotation=camera.rotation)
-        self.scene.camera = view_cam
+        # Save the camera and make view camera
+        game_camera = scene.camera
+        view_camera = bsk.FixedCamera(position=((self.node.position.x, self.node.position.y, self.node.position.z) + relative_position), rotation=camera.rotation)
+        scene.camera = view_camera
 
-        # Render the scene from the correct view
-        self.node.y -= 1000
-        self.outline.y -= 1000
-        self.scene.render(self.fbo)
-        self.node.y += 1000
-        self.outline.y += 1000
+        # Render depth
+        scene.shader = shader
+        scene.render(render_target)
 
-        # Reset the camera
-        self.scene.camera = temp
+        # Reset the camera and shader
+        scene.shader = self.game_shader
+        scene.camera = game_camera
+
+    def depth_prepass(self, camera: bsk.FreeCamera):
+        """
         
-    @property
-    def view_data(self): return self.fbo.texture.read()
+        """
+        
+        self.render_pass(camera, self.depth_fbo, self.portal_scene, self.depth_shader)
+
+    def color_prepass(self, camera: bsk.FreeCamera):
+        """
+        
+        """
+
+        self.color_shader.write('portalID', glm.int32(self.index))
+        self.render_pass(camera, self.color_fbo, self.game_scene, self.color_shader)
+
+    def set_index(self, index: int) -> None:
+        self.index = index
+        self.mesh.data[:,3] = index
+        self.node.chunk.node_update_callback(self.node)

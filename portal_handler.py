@@ -1,12 +1,9 @@
 import basilisk as bsk
 from portal import Portal
-import numpy as np
-import moderngl as mgl
-
+import glm
 
 class PortalHandler:
     portals: list[list[Portal]]
-    texture_array: mgl.TextureArray=None
     """"""
     def __init__(self, game: ...) -> None:
         """
@@ -17,72 +14,48 @@ class PortalHandler:
         self.game = game
         self.engine = game.engine
 
-        # Shader for the portal nodes
-        self.portal_shader = bsk.Shader(self.engine, "shaders/portal.vert", "shaders/portal.frag")
+        # Shaders for the portal pipeline
+        self.depth_shader  = bsk.Shader(self.engine, 'shaders/depth.vert',  'shaders/depth.frag' )
+        """Shader used for the depth prepass"""
+        self.portal_shader = bsk.Shader(self.engine, 'shaders/portal.vert', 'shaders/portal.frag')
+        """Shader used when rendering the portals in the player's view"""
+        self.color_shader  = bsk.Shader(self.engine, 'shaders/color.vert', 'shaders/color.frag')
+        """Shader used when rendering the portal's view"""
 
-        # List containing all portals in the game
-        self.portals = []
+        # Scene fpr all the portals
+        self.portal_scene = bsk.Scene(self.engine, shader=self.portal_shader)
+        self.portal_scene.camera = self.game.scene.camera
 
     def add(self, scene: bsk.Scene, open_position: tuple[int], end_position: tuple[int], scale: tuple[int]=(1, 1, 1)):
         """
-        Add a new portal to the given scene
+        
         """
+        
+        self.portal_1 = Portal(self, scene, open_position, scale)
+        self.portal_2 = Portal(self, scene, end_position,  scale)
 
-        # Create the two portal ends
-        open_portal = Portal(self, scene, self.portal_shader, open_position, scale)
-        end_portal  = Portal(self, scene, self.portal_shader, end_position, scale)
+        self.portal_1.link = self.portal_2
+        self.portal_2.link = self.portal_1
 
-        # Link each end of the portal to the other
-        open_portal.link = end_portal
-        end_portal.link = open_portal
+        self.portal_1.set_index(1)
+        self.portal_2.set_index(0)
 
-        # Save the portal ends as a pair
-        self.portals.append([open_portal, end_portal])
+        self.portal_shader.bind(self.portal_1.color_fbo.texture, "portalTexture1", 1)
+        self.portal_shader.bind(self.portal_2.color_fbo.texture, "portalTexture2", 2)
+        self.color_shader.bind(self.portal_1.depth_fbo.depth, "portalDepthTexture1", 3)
+        self.color_shader.bind(self.portal_2.depth_fbo.depth, "portalDepthTexture2", 4)
 
-    def update(self, camera: bsk.FreeCamera) -> None:
-        """
-        Updates all portals accordiing to the given primary camera
-        """
+    def render(self) -> None:
+        self.portal_scene.render()
 
-        # Do not attempt to get portal views if there are no portals
-        if not self.portals: return
+    def update(self, camera: bsk.FreeCamera):
+        self.portal_scene.update(render=False)
 
-        # Empty array for all portal view data
-        array_data_texture = []
-        array_data_depth   = []
+        # Depth prepass for each portal
+        self.portal_1.depth_prepass(camera)
+        self.portal_2.depth_prepass(camera)
 
-        # Loop through portals and render the view according to the given camera
-        for i, (portal_1, portal_2) in enumerate(self.portals):
-            portal_1.render_view(camera, i * 2)
-            portal_2.render_view(camera, i * 2 + 1)
-
-            array_data_texture.append(portal_1.fbo.texture.read())
-            array_data_texture.append(portal_2.fbo.texture.read())
-
-            array_data_depth.append(portal_1.fbo.depth.read())
-            array_data_depth.append(portal_2.fbo.depth.read())
-
-        # Condense array data
-        dim = (*self.engine.win_size, len(array_data_texture))
-        array_data_texture = np.array(array_data_texture)
-        array_data_depth = np.array(array_data_depth)
-
-        # Build new array
-        if not self.texture_array:
-            # Color attachment array
-            self.texture_array = self.engine.ctx.texture_array(size=dim, components=4, data=array_data_texture)
-            self.texture_array.build_mipmaps()
-            self.texture_array.anisotropy = 32.0
-            # Depth attachment array
-            self.depth_array = self.engine.ctx.texture_array(size=dim, components=4, data=array_data_depth)
-
-            # Bind to Shader
-            self.portal_shader.program['portalTextures'] = 0
-            self.texture_array.use(location=0)
-            # self.portal_shader.program['portalDepths'] = 1
-            # self.depth_array.use(location=1)
-
-        # Write to existing array
-        else:
-            self.texture_array.write(array_data_texture)
-            self.depth_array.write(array_data_depth)
+        # View pass
+        self.game.scene.light_handler.write(self.color_shader.program)
+        self.portal_1.color_prepass(camera)
+        self.portal_2.color_prepass(camera)
