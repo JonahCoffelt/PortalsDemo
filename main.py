@@ -1,5 +1,6 @@
 import basilisk as bsk
 from level import load_level
+from player import Player
 from portal_handler import PortalHandler
 
 class Demo:
@@ -7,10 +8,10 @@ class Demo:
         """
         Creates the basilisk context used by the demo
         """
-        
         # Create Basilisk objects
         self.engine = bsk.Engine(title=None)
         self.scene = bsk.Scene(self.engine)
+        self.player = Player(self.scene.camera)
 
         # Load a sample level
         self.load_assets()
@@ -35,7 +36,7 @@ class Demo:
         
         while self.engine.running:
             self.update()
-
+            print(self.player.radius)
             self.scene.render()
             self.portal_handler.render()
 
