@@ -11,7 +11,6 @@ class Demo:
         # Create Basilisk objects
         self.engine = bsk.Engine(title=None)
         self.scene = bsk.Scene(self.engine)
-        self.player = Player(self.scene.camera)
 
         # Load a sample level
         self.load_assets()
@@ -21,6 +20,9 @@ class Demo:
         self.portal_handler = PortalHandler(self)
 
         self.portal_handler.add(self.scene, open_position=(-15, 2, 10), end_position=(15, 2, 10), scale=(2, 4, .1))
+        
+        # player
+        self.player = Player(self)
 
     def load_assets(self):
         self.invisible_shader = bsk.Shader(self.engine, 'shaders/invisible.vert', 'shaders/invisible.frag')
@@ -36,7 +38,7 @@ class Demo:
         
         while self.engine.running:
             self.update()
-            print(self.player.radius)
+            self.player.update()
             self.scene.render()
             self.portal_handler.render()
 
