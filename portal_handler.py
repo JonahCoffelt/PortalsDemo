@@ -61,5 +61,5 @@ class PortalHandler:
         self.portal_2.color_prepass(camera)
         
     def __getitem__(self, key: bsk.Node) -> Portal: # TODO this will need to be adapted to handle multiple portal pairs preferably stored as a dict[bsk.Node, Portal]
-        if key == self.portal_1.node or key == self.portal_1.outline: return self.portal_1
-        if key == self.portal_2.node or key == self.portal_2.outline: return self.portal_2
+        if key == self.portal_1.node: return self.portal_1
+        if key == self.portal_2.node: return self.portal_2

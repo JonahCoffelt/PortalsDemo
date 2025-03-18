@@ -28,15 +28,15 @@ class Portal:
         self.color_fbo = bsk.Framebuffer(self.engine)
 
         # Load the mesh for the portal (cube with custom data)
-        self.mesh = bsk.Mesh('assets/cube.obj', custom_format=True)
+        self.mesh = bsk.Mesh('assets/vertical_plane.obj', custom_format=True)
         self.mesh.data[:,3] = 0
         self.mesh.data = self.mesh.data[:,:4]
 
         # Create the portal node and add it to the portal scene
         self.black = bsk.Material(color=0)
         self.node = bsk.Node(mesh=self.mesh, position=position, scale=scale, shader=self.portal_shader)
-        self.outline = bsk.Node(position=position, scale=(scale[0] + .1, scale[1] + .1, scale[2] - .01,), material=self.black, shader=self.game_shader)
-        self.portal_scene.add(self.node, self.outline)
+        # self.outline = bsk.Node(position=position, scale=(scale[0] + .1, scale[1] + .1, scale[2] - .01,), material=self.black, shader=self.game_shader)
+        self.portal_scene.add(self.node)
 
 
     def render_pass(self, camera: bsk.FreeCamera, render_target: bsk.Framebuffer, scene: bsk.Scene, shader: bsk.Shader):
