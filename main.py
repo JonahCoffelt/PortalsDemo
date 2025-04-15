@@ -1,49 +1,52 @@
 import basilisk as bsk
-from level import load_level
-from player import Player
+import level_1, level_2
 from portal_handler import PortalHandler
 
-class Demo:
+class App:
     def __init__(self):
-        """
-        Creates the basilisk context used by the demo
-        """
-        # Create Basilisk objects
-        self.engine = bsk.Engine(title=None)
-        self.scene = bsk.Scene(self.engine)
+        self.engine  = bsk.Engine(title=None)
+        self.scene_1 = bsk.Scene(self.engine)
+        self.scene_2 = bsk.Scene(self.engine)
 
-        # Load a sample level
-        self.load_assets()
-        load_level(self.scene)
+        self.portal_handler = PortalHandler(self, self.scene_1, self.scene_2)
 
-        # Handler for portals
-        self.portal_handler = PortalHandler(self)
+    def load_meshes(self):
+        ...
 
-        self.portal_handler.add(self.scene, open_position=(-15, 2, 10), end_position=(15, 2, 10), scale=(2, 4, .1))
-        
-        # player
-        self.player = Player(self)
+    def load_textures(self):
+        ...
 
-    def load_assets(self):
-        self.invisible_shader = bsk.Shader(self.engine, 'shaders/invisible.vert', 'shaders/invisible.frag')
+    def load_levels(self):
+        level_1.load(self, self.scene_1)
+        level_2.load(self, self.scene_2)
+
+    def render(self):
+        self.portal_handler.render()
 
     def update(self):
-        self.scene.update(render=False)
-        self.portal_handler.update(self.scene.camera)
+        self.scene_1.update(render=False)
+        self.scene_2.update(render=False)
+        self.portal_handler.update()
+
+        self.render()
+
+        self.engine.update(render=False)
 
     def start(self):
-        """
-        Starts the demo
-        """
-        
+
+        self.load_meshes()
+        self.load_textures()
+        self.load_levels()
+
         while self.engine.running:
+
+            if self.engine.keys[bsk.pg.K_1]:
+                self.portal_handler.set_scenes(self.scene_1, self.scene_2)
+            if self.engine.keys[bsk.pg.K_2]:
+                self.portal_handler.set_scenes(self.scene_2, self.scene_1)
+
             self.update()
-            self.player.update()
-            self.scene.render()
-            self.portal_handler.render()
-
-            self.engine.update()
 
 
-demo = Demo()
-demo.start()
+app = App()
+app.start()

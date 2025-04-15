@@ -1,65 +1,91 @@
 import basilisk as bsk
-from portal import Portal
-import glm
+
 
 class PortalHandler:
-    portals: list[list[Portal]]
-    """"""
-    def __init__(self, game: ...) -> None:
-        """
-        Handles all the rendering and interactions of portals
+    scene_main: bsk.Scene
+    """The current primary scene. The scene the player/camera is in"""
+    scene_other: bsk.Scene
+    """The scene that is rendered in portals"""
+
+    def __init__(self, game, main_scene: bsk.Scene, other_scene: bsk.Scene):
         """
         
-        # Parent Basilisk references
-        self.game = game
+        """
+        
+        # Back references
+        self.game   = game
         self.engine = game.engine
+        self.ctx    = main_scene.ctx
 
-        # Shaders for the portal pipeline
-        self.depth_shader  = bsk.Shader(self.engine, 'shaders/depth.vert',  'shaders/depth.frag' )
-        """Shader used for the depth prepass"""
-        self.portal_shader = bsk.Shader(self.engine, 'shaders/portal.vert', 'shaders/portal.frag')
-        """Shader used when rendering the portals in the player's view"""
-        self.color_shader  = bsk.Shader(self.engine, 'shaders/color.vert', 'shaders/color.frag')
-        """Shader used when rendering the portal's view"""
+        # Load shaders
+        self.blank_shader   = bsk.Shader(self.engine, 'shaders/blank.vert' , 'shaders/blank.frag'  )
+        self.other_shader   = bsk.Shader(self.engine, 'shaders/other.vert' , 'shaders/other.frag'  )
+        self.portal_shader  = bsk.Shader(self.engine, 'shaders/portal.vert', 'shaders/portal.frag' )
+        self.combine_shader = bsk.Shader(self.engine, 'shaders/frame.vert' , 'shaders/combine.frag')
 
-        # Scene fpr all the portals
+        # Scene FBOs. Stores images and depths until needed
+        self.main_fbo    = bsk.Framebuffer(self.engine)
+        self.other_fbo   = bsk.Framebuffer(self.engine)
+        self.portal_fbo  = bsk.Framebuffer(self.engine)
+        self.combine_fbo = bsk.Framebuffer(self.engine, self.combine_shader)
+      
+        # Create a scene for the portals
         self.portal_scene = bsk.Scene(self.engine, shader=self.portal_shader)
-        self.portal_scene.camera = self.game.scene.camera
+        # Add a portal node
+        self.portal = bsk.Node(position=(0, 0, 10), scale=(5, 5, .1))
+        self.portal_scene.add(self.portal)
 
-    def add(self, scene: bsk.Scene, open_position: tuple[int], end_position: tuple[int], scale: tuple[int]=(1, 1, 1)):
+        self.set_scenes(main_scene, other_scene)
+
+    def update(self):
+        """
+        Updates the portal scene
         """
         
-        """
-        
-        self.portal_1 = Portal(self, scene, open_position, scale)
-        self.portal_2 = Portal(self, scene, end_position,  scale)
-
-        self.portal_1.link = self.portal_2
-        self.portal_2.link = self.portal_1
-
-        self.portal_1.set_index(1)
-        self.portal_2.set_index(0)
-
-        self.portal_shader.bind(self.portal_1.color_fbo.texture, "portalTexture1", 1)
-        self.portal_shader.bind(self.portal_2.color_fbo.texture, "portalTexture2", 2)
-        self.color_shader.bind(self.portal_1.depth_fbo.depth, "portalDepthTexture1", 3)
-        self.color_shader.bind(self.portal_2.depth_fbo.depth, "portalDepthTexture2", 4)
-
-    def render(self) -> None:
-        self.portal_scene.render()
-
-    def update(self, camera: bsk.FreeCamera):
         self.portal_scene.update(render=False)
 
-        # Depth prepass for each portal
-        self.portal_1.depth_prepass(camera)
-        self.portal_2.depth_prepass(camera)
+    def render(self):
+        """
+        Renders both of the active scenes and renders the portals
+        """
 
-        # View pass
-        self.game.scene.light_handler.write(self.color_shader.program)
-        self.portal_1.color_prepass(camera)
-        self.portal_2.color_prepass(camera)
+        # Render the base scenes
+        self.portal_scene.render(self.portal_fbo)
+        self.other_shader.bind(self.portal_scene.frame.input_buffer.depth, 'testTexture', 1)
+        self.other_scene.render(self.other_fbo)
+        self.main_scene.render(self.main_fbo)
+
+        # Render the portals, using the other fbo texture
+        self.portal_fbo.clear()
+        self.portal_scene.render(self.portal_fbo)
+
+        # Render the combined scene
+        self.combine_fbo.render(auto_bind=False)
+
+    def set_scenes(self, main_scene: bsk.Scene, other_scene: bsk.Scene):
+        """
+        Sets the main and other scene. 
+        Main scene is where the player is, other scene is what is shown in the portal. 
+        """
+
+        self.main_scene   = main_scene
+        self.other_scene  = other_scene
+        self.other_scene.shader = self.other_shader
+
+        self.bind_all()
+
+    def bind_all(self):
+        """
+        Binds all the textures for the portal pipeline
+        """
         
-    def __getitem__(self, key: bsk.Node) -> Portal: # TODO this will need to be adapted to handle multiple portal pairs preferably stored as a dict[bsk.Node, Portal]
-        if key == self.portal_1.node: return self.portal_1
-        if key == self.portal_2.node: return self.portal_2
+        # Fixes a Basilisk bug :P
+        self.other_shader.bind(self.other_scene.sky.texture_cube, 'skyboxTexture', 8)
+        
+        # Bind all stages
+        self.other_shader.bind  (self.portal_scene.frame.input_buffer.depth, 'testTexture', 1)
+        self.portal_shader.bind (self.other_fbo.texture, 'otherTexture', 2)
+        self.combine_shader.bind(self.main_fbo.texture, 'mainTexture', 3)
+        self.combine_shader.bind(self.portal_fbo.texture, 'portalTexture', 4)
+        self.combine_shader.bind(self.main_scene.frame.input_buffer.depth,  'mainDepthTexture', 5)
+        self.combine_shader.bind(self.portal_scene.frame.input_buffer.depth, 'portalDepthTexture', 6)

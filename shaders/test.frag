@@ -1,6 +1,9 @@
 #version 330 core
 
 layout (location = 0) out vec4 fragColor;
+layout (location = 1) out vec4 bloomColor;
+layout (location = 2) out vec4 normalTexture;
+
 
 // Structs needed for the shader
 struct textArray {
@@ -14,8 +17,10 @@ struct DirectionalLight {
     float ambient;
 };  
 
+// Material struct sent to fragment shader
 struct Material {
     vec3  color;
+    vec3  emissiveColor;
     float roughness;
     float subsurface;
     float sheen;
@@ -51,6 +56,9 @@ in mat3 TBN;
 flat in Material mtl;
 
 // Uniforms
+uniform vec2 viewportDimensions;
+uniform sampler2D testTexture;
+
 uniform vec3 cameraPosition;
 const int    maxDirLights = 5;
 uniform      DirectionalLight dirLights[maxDirLights];
@@ -218,36 +226,17 @@ float getRoughness(Material mtl, vec2 uv) {
     return roughness;
 }
 
-uniform vec2 viewportDimensions;
-uniform sampler2D portalDepthTexture1;
-uniform sampler2D portalDepthTexture2;
-uniform int portalID;
-
 void main() {
-
-    // Check the depth prepass
-    vec2 uv = (gl_FragCoord.xy) / viewportDimensions; 
-    
-    float depth;
-    if (portalID == 1) {
-        depth = texture(portalDepthTexture1, uv).r;
-    }
-    else {
-        depth = texture(portalDepthTexture2, uv).r;
-    }
-
-    if (gl_FragCoord.z < depth) {discard;}
-
     float gamma = 2.2;
     vec3 viewDir = vec3(normalize(cameraPosition - position));
 
     // Get lighting vectors
-    vec3 albedo     = getAlbedo(mtl, uv, gamma);
-    vec3 normal     = getNormal(mtl, TBN);
+    vec3  albedo     = getAlbedo(mtl, uv, gamma);
+    vec3  normal     = getNormal(mtl, TBN);
     float ao        = getAo(mtl, uv);
     float roughness = getRoughness(mtl, uv);
-    vec3 tangent    = TBN[0];
-    vec3 bitangent  = TBN[1];
+    vec3  tangent    = TBN[0];
+    vec3  bitangent  = TBN[1];
 
     // Orthogonalize the tangent and bitangent according to the mapped normal vector
     tangent = tangent - dot(normal, tangent) * normal;
@@ -284,13 +273,27 @@ void main() {
     lightResult.diffuse  *= mix(vec3(1.0), ambient_sky, 0.25);
     lightResult.diffuse  *= ao;
 
-    vec3 finalColor = albedo * 0.3 * mix(vec3(1.0), reflect_sky, mtl.metallicness);
-    finalColor += (lightResult.diffuse + lightResult.specular + lightResult.clearcoat);
+    vec3 finalColor = lightResult.diffuse + lightResult.specular + lightResult.clearcoat;
 
-    // light_result *= mix(vec3(1.0), texture(skyboxTexture, reflect(-V, N)).rgb, mtl.metallicness);
-    // Gamma correction
-    finalColor = pow(finalColor, vec3(1.0/gamma));
+    float brightness = dot(finalColor, vec3(0.2126, 0.7152, 0.0722)) + dot(lightResult.specular, vec3(.15)) + dot(mtl.emissiveColor, vec3(1));
+    // Filter out bright pixels for bloom
+    float threshold = 0.5;
+    if (brightness > threshold) {
+        bloomColor = vec4(max(finalColor + mtl.emissiveColor - threshold, 0.0), 1.0);
+    }
+    else{
+        bloomColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    
 
     // Output fragment color
-    fragColor = vec4(finalColor, 1.0);
+    finalColor += albedo * 0.3 * mix(vec3(1.0), reflect_sky, mtl.metallicness) + mtl.emissiveColor;
+
+    vec2 screenuv = (gl_FragCoord.xy) / viewportDimensions;
+    float depth = 20 * (1 - texture(testTexture, screenuv).r);
+
+    fragColor = vec4(finalColor * depth, 1.0);
+
+    normalTexture = vec4(abs(N), 1.0);
+
 }
