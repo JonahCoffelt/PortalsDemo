@@ -1,4 +1,5 @@
 import basilisk as bsk
+import glm
 
 
 class PortalHandler:
@@ -36,11 +37,20 @@ class PortalHandler:
         self.portal_scene.add(self.portal)
 
         self.set_scenes(main_scene, other_scene)
+        self.set_positions(glm.vec3(0, 0, 10), glm.vec3(5, 0, 5))
+        self.set_rotations(glm.quat(0, 0, 0, 0), glm.quat(0, 0, 0, 0))
 
     def update(self):
         """
         Updates the portal scene
         """
+        
+
+        position_difference = self.main_scene.camera.position - self.portal.position
+        look_difference = self.other_scene.camera.rotation * glm.inverse(self.portal.rotation.data) * self.other_rotation
+
+        self.other_scene.camera.position = self.other_position + position_difference
+        self.other_scene.camera.rotation = look_difference
         
         self.portal_scene.update(render=False)
 
@@ -89,3 +99,19 @@ class PortalHandler:
         self.combine_shader.bind(self.portal_fbo.texture, 'portalTexture', 4)
         self.combine_shader.bind(self.main_scene.frame.input_buffer.depth,  'mainDepthTexture', 5)
         self.combine_shader.bind(self.portal_scene.frame.input_buffer.depth, 'portalDepthTexture', 6)
+
+    def set_positions(self, main_position: glm.vec3, other_position: glm.vec3):
+        """
+        
+        """
+        
+        self.portal.position = main_position
+        self.other_position = other_position
+
+    def set_rotations(self, main_rotation: glm.quat, other_position: glm.quat):
+        """
+        
+        """
+
+        self.portal.rotation = main_rotation
+        self.other_rotation = other_position
