@@ -40,10 +40,8 @@ class App:
 
         while self.engine.running:
 
-            if self.engine.keys[bsk.pg.K_1]:
-                self.portal_handler.set_scenes(self.scene_1, self.scene_2)
-            if self.engine.keys[bsk.pg.K_2]:
-                self.portal_handler.set_scenes(self.scene_2, self.scene_1)
+            if self.engine.keys[bsk.pg.K_1] and not self.engine.previous_keys[bsk.pg.K_1]:
+                self.portal_handler.swap()
 
             self.update()
 

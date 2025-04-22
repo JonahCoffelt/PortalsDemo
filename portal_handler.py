@@ -50,7 +50,7 @@ class PortalHandler:
         look_difference = self.other_scene.camera.rotation * glm.inverse(self.portal.rotation.data) * self.other_rotation
 
         self.other_scene.camera.position = self.other_position + position_difference
-        self.other_scene.camera.rotation = look_difference
+        # self.other_scene.camera.rotation = look_difference
         
         self.portal_scene.update(render=False)
 
@@ -115,3 +115,16 @@ class PortalHandler:
 
         self.portal.rotation = main_rotation
         self.other_rotation = other_position
+
+    def swap(self):
+        """
+        
+        """
+
+        self.main_scene.camera.position = self.other_position + self.main_scene.camera.position - self.portal.position
+        self.portal.rotation, self.other_rotation = self.other_rotation, self.portal.rotation
+        self.portal.position, self.other_position = glm.vec3(self.other_position), glm.vec3(self.portal.position.data)
+        self.main_scene.shader, self.other_scene.shader = self.other_scene.shader, self.main_scene.shader
+        self.main_scene, self.other_scene = self.other_scene, self.main_scene
+
+        self.bind_all()
