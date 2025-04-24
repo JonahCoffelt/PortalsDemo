@@ -11,5 +11,5 @@ void main()
 
     vec4 otherColor = texture(otherTexture, uv);
 
-    fragColor = otherColor;
+    fragColor = otherColor / 2;
 }

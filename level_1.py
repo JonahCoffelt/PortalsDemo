@@ -2,6 +2,7 @@ import basilisk as bsk
 
 
 def load(app, scene):
-    cube = bsk.Node()
+    mtl = bsk.Material(emissive_color=(500, 500, 100))
+    cube = bsk.Node(material=mtl)
 
     scene.add(cube)
