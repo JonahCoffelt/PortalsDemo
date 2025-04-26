@@ -1,5 +1,6 @@
 import basilisk as bsk
 import glm
+import moderngl as mgl
 from renderers.renderer import Renderer
 
 
@@ -30,7 +31,7 @@ class PortalHandler:
         # Create a scene for the portals
         self.portal_scene = bsk.Scene(self.engine, shader=self.portal_shader)
         # Add a portal node
-        self.portal = bsk.Node(position=(0, 0, 10), scale=(5, 5, .1))
+        self.portal = bsk.Node(position=(0, 0, 10), scale=(5, 5, 1))
         self.portal_scene.add(self.portal)
         self.portal_scene.camera = bsk.StaticCamera()
         self.portal_scene.sky = None
@@ -65,8 +66,10 @@ class PortalHandler:
         """
 
         # Render the base scenes
+        self.ctx.disable(mgl.CULL_FACE)
         self.portal_scene.render(self.portal_fbo)
         self.other_renderer.other_shader.bind(self.portal_scene.frame.input_buffer.depth, 'depthTexture', 1)
+        self.ctx.enable(mgl.CULL_FACE)
 
         self.other_renderer.render()
         self.main_renderer.render()
@@ -74,8 +77,10 @@ class PortalHandler:
         self.bind_all()
 
         # Render the portals, using the other fbo texture
+        self.ctx.disable(mgl.CULL_FACE)
         self.portal_fbo.clear()
         self.portal_scene.render(self.portal_fbo)
+        self.ctx.enable(mgl.CULL_FACE)
 
         # Render the combined scene
         self.combine_fbo.render(self.ctx.screen, auto_bind=False)

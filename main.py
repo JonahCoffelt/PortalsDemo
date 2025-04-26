@@ -5,8 +5,9 @@ from renderers.renderer import Renderer
 from renderers.kuwahara import KuwaharaRenderer
 from renderers.pixel import PixelRenderer, PixelQuantizedRenderer
 from renderers.outline import OutlineRenderer
-from renderers.gooch import GoochRenderer
+from renderers.gooch import GoochRenderer, GoochInvertedRenderer
 from renderers.blank import BlankRenderer
+from renderers.quantize import QuantizeRenderer
 
 class App:
     def __init__(self):
@@ -42,8 +43,8 @@ class App:
         self.load_textures()
         self.load_levels()
 
-        self.renderer_1 = GoochRenderer(self.scene_1)
-        self.renderer_2 = OutlineRenderer(self.scene_2)
+        self.renderer_1 = Renderer(self.scene_1)
+        self.renderer_2 = GoochInvertedRenderer(self.scene_2)
 
         self.portal_handler = PortalHandler(self, self.renderer_1, self.renderer_2)
 

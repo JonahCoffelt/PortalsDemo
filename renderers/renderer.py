@@ -5,6 +5,7 @@ import moderngl as mgl
 class Renderer:
     scene: bsk.Scene
     fbo: bsk.Framebuffer
+    engine: bsk.Engine
 
     def __init__(self, scene: bsk.Scene) -> None:
         """
