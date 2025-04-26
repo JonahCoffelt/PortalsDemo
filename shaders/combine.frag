@@ -20,6 +20,6 @@ void main()
         fragColor = vec4(mainColor, 1.0);
     }
     else {
-        fragColor = vec4(portalColor, 1.0);
+        fragColor = vec4(portalColor * .9, 1.0);
     }
 }

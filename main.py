@@ -1,6 +1,12 @@
 import basilisk as bsk
 import level_1, level_2
 from portal_handler import PortalHandler
+from renderers.renderer import Renderer
+from renderers.kuwahara import KuwaharaRenderer
+from renderers.pixel import PixelRenderer, PixelQuantizedRenderer
+from renderers.outline import OutlineRenderer
+from renderers.gooch import GoochRenderer
+from renderers.blank import BlankRenderer
 
 class App:
     def __init__(self):
@@ -8,13 +14,13 @@ class App:
         self.scene_1 = bsk.Scene(self.engine)
         self.scene_2 = bsk.Scene(self.engine)
 
-        self.portal_handler = PortalHandler(self, self.scene_1, self.scene_2)
-
     def load_meshes(self):
         ...
 
     def load_textures(self):
-        ...
+        self.img = bsk.Image('main_fbo.png')
+        self.mtl = bsk.Material(texture=self.img)
+
 
     def load_levels(self):
         level_1.load(self, self.scene_1)
@@ -24,19 +30,22 @@ class App:
         self.portal_handler.render()
 
     def update(self):
-        self.scene_1.update(render=False)
-        self.scene_2.update(render=False)
         self.portal_handler.update()
 
         self.render()
 
-        self.engine.update(render=False)
+        self.engine.update()
 
     def start(self):
 
         self.load_meshes()
         self.load_textures()
         self.load_levels()
+
+        self.renderer_1 = GoochRenderer(self.scene_1)
+        self.renderer_2 = OutlineRenderer(self.scene_2)
+
+        self.portal_handler = PortalHandler(self, self.renderer_1, self.renderer_2)
 
         while self.engine.running:
 
